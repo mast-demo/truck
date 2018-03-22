@@ -1,3 +1,4 @@
+<!-- this is important -->
 <launch>
 	<include file="$(find truck)/launch/imu.launch" />
 	<include file="$(find truck)/launch/camera.launch" />
