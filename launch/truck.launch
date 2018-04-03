@@ -1,5 +1,13 @@
-<!-- this is important -->
+<?xml version="1.0"?>
 <launch>
+  <node name="imu_tf" pkg="tf" 
+    type="static_transform_publisher" 
+    args="0 0 0 0 0 0 base_link imu 100" />
+  <node pkg="truck" type="cmd_vel_sim.py" name="cmd_vel_sim" />
+  <node pkg="truck" type="twist_sim.py" name="twist_sim" />
+	<include file="$(find truck)/launch/localization_odom.launch" />
 	<include file="$(find truck)/launch/imu.launch" />
+<!--
 	<include file="$(find truck)/launch/camera.launch" />
+-->
 </launch>

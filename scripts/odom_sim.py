@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+#
+# This subscribes to a cmd_vel and publishes an odom with only 
+# the vx in it.
+
 import rospy
 import tf
 from geometry_msgs.msg import Twist
@@ -12,6 +16,7 @@ def callback(data):
     o = Odometry()
     o.child_frame_id = "odom"
     o.twist.twist = data
+    o.header.frame_id = "base_link"
     o.twist.covariance[0] = 0.1
     pub.publish(o)    
 
