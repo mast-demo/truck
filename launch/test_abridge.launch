@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="arduino_dev"/>
+	<arg name="name"/>
+
+  <node pkg="sipi_controller" type="abridge" name="$(arg name)_ABRIDGE" output="screen">
+		<param name="device" value="$(arg arduino_dev)"/>
+	</node>
+</launch>

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!--
+  launch file to run swarmie code on real hardware
+  must run abridge, ublox and camera in the real hardware 
+  and then runs the base swarmie.launch to start the 
+  other nodes.
+
+  This launch file shoul donly contain nodes that are 
+  specific to the hardware
+
+  The arguments are the name of this swarmie
+  the usb dev path to the gps 
+  the usb dev path to the arduino
+-->
+<launch>
+	<arg name="arduino_dev"/>
+	<arg name="gps_dev"/>
+	<arg name="name"/>
+	<arg name="use_gps" default="true"/>
+
+	<node pkg="ublox_gps" type="ublox_gps" name="$(arg name)_UBLOX">
+		<param name="device" value="$(arg gps_dev)"/>
+		<param name="frame_id" value="$(arg name)/base_link"/>
+<!--		<param name="fix_mode" value="2d"/> -->
+		<remap from="$(arg name)_UBLOX/fix" to="$(arg name)/fix"/>
+		<remap from="$(arg name)_UBLOX/fix_velocity" to="$(arg name)/fix_velocity"/>
+	</node>
+
+  <node pkg="sipi_controller" type="abridge" name="$(arg name)_ABRIDGE" 
+      args="$(arg name)" output="screen">
+		<param name="device" value="$(arg arduino_dev)"/>
+	</node>
+	<include file="$(find sipi_controller)/launch/camera.launch">
+		<arg name="name" value="$(arg name)"/>
+	</include>
+	<include file="$(find sipi_controller)/launch/swarmie.launch">
+		<arg name="name" value="$(arg name)"/>
+		<arg name="use_gps" value="$(arg use_gps)"/>
+	</include>
+</launch>

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!--
+  launch file to use indoors or when GPS is bad
+  works the same as with GPS only ignores navsat data
+-->
+<launch>
+	<arg name="name"/>
+  <node pkg="sipi_controller" type="repeat_localization" name="$(arg name)_MAP"  output="screen">
+    <param name="name" value="$(arg name)" />
+  </node>
+	<node pkg="gps_common" type="utm_odometry_node" name="$(arg name)_UTM" >
+		<remap from="fix" to="/$(arg name)/fix"/>
+		<remap from="odom" to="/$(arg name)/odom/utm"/>
+  </node>
+</launch>

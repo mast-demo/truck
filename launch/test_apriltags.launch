@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!--
+  Test apriltage detector
+-->
+<launch>
+  <arg name="name" default="walle"/>
+	<include file="$(find sipi_controller)/launch/camera.launch">
+		<arg name="name" value="$(arg name)"/>
+	</include>
+  <include file="$(find sipi_controller)/launch/apriltags.launch">
+		<arg name="name" value="$(arg name)"/>
+	</include>
+</launch>

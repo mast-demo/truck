@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="name"/>
+  <!-- argument to decide if you use GPS data of not
+    primarilly for indoor testing
+  -->
+  <arg name="use_gps" default="true"/>
+  <!-- have to define this PATH or diagnostics fail -->
+  <env name="GAZEBO_MODEL_PATH" value="~" />
+  <param name="tf_prefix" value="$(arg name)" />
+
+  <node name="$(arg name)_BASE2CAM" pkg="tf" 
+    type="static_transform_publisher" 
+    args="0.12 -0.03 0.195 -1.57 0 -2.22 $(arg name)/base_link $(arg name)/camera_link 100" />
+  <node name="$(arg name)_DIAGNOSTICS" pkg="diagnostics" 
+    type="diagnostics" args="$(arg name)" />
+  <node name="$(arg name)_BEHAVIOUR" pkg="sipi_controller" 
+    type="sipi_controller_node" args="$(arg name)" output="screen"/>
+<!--
+  <node name="$(arg name)_VISUAL" pkg="sipi_controller" 
+    type="visual_localization_node" args="$(arg name)" output="screen"/>
+  <node name="$(arg name)_OBSTACLE" pkg="obstacle_detection" 
+    type="obstacle" args="$(arg name)" />
+-->
+
+  <include file="$(find sipi_controller)/launch/navsat.launch">
+		<arg name="name" value="$(arg name)"/>
+	</include>
+
+  <!-- for indoor testing you cannot use GPS so we have a 
+    different launch file that just passes ODOM through
+  -->
+  <group if="$(arg use_gps)">
+    <include file="$(find sipi_controller)/launch/localization_gps.launch">
+		  <arg name="name" value="$(arg name)"/>
+	  </include>
+  </group>
+  <group unless="$(arg use_gps)">
+    <include file="$(find sipi_controller)/launch/localization_no_gps.launch">
+		  <arg name="name" value="$(arg name)"/>
+	  </include>
+  </group>
+
+  <include file="$(find sipi_controller)/launch/localization_odom.launch">
+		<arg name="name" value="$(arg name)"/>
+	</include>
+  <include file="$(find sipi_controller)/launch/apriltags.launch">
+		<arg name="name" value="$(arg name)"/>
+	</include>
+<!-- TODO this needs to be replaced by the visual localization -->
+<!--
+  <node name="$(arg name)_TEMP" pkg="tf" 
+    type="static_transform_publisher" 
+    args="0 0 0 0 0 0 $(arg name)/map $(arg name)/arena 100" />
+-->
+</launch>
