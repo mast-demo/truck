@@ -28,7 +28,8 @@ geometry_msgs::Pose2D poseToPose2D(geometry_msgs::Pose pose) {
   p.y = pose.position.y;
   geometry_msgs::Quaternion q = pose.orientation;
   p.theta = atan2(2.0 * (q.z * q.w + q.x * q.y) , 
-    - 1.0 + 2.0 * (q.w * q.w + q.x * q.x)); 
+      - 1.0 + 2.0 * (q.w * q.w + q.x * q.x)); 
+  return p;
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr &odom) {
@@ -108,6 +109,9 @@ void stateMachineCallback(const ros::TimerEvent &e) {
         }
         float d, a;
         distanceBetweenPoses(goals.front(), current_pose_odom, d, a);
+        ROS_INFO_STREAM("at("<<current_pose_odom.x<<","<<
+            current_pose_odom.y<<") goto("<<goals.front().x<<
+            ","<<goals.front().y<<")");
         if(d < 0.1) {
           ROS_INFO("DRIVE_ODOM: arrived");
           goals.pop();
@@ -129,7 +133,7 @@ void stateMachineCallback(const ros::TimerEvent &e) {
 int main(int argc, char **argv) {
   ros::init(argc, argv, "truck_node");
   ros::NodeHandle nh;
-  ros::Subscriber odom_sub = nh.subscribe("odom/filtered", 1, odomCallback);
+  ros::Subscriber odom_sub = nh.subscribe("odometry/filtered", 1, odomCallback);
   ros::Subscriber gps_sub = nh.subscribe("gps", 1, gpsCallback);
   ros::Subscriber goal_sub = nh.subscribe("goal_cmd", 1, goalCallback);
   ros::Subscriber cmd_sub = nh.subscribe("cmd", 1, cmdCallback);
