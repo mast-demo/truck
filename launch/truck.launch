@@ -2,7 +2,13 @@
 <launch>
   <node name="imu_tf" pkg="tf" 
     type="static_transform_publisher" 
-    args="0 0 0 0 0 0 base_link imu 100" />
+    args="-0.1 0 0.1 0 0 0 base_link imu 100" />
+  <node name="lr_tf" pkg="tf" 
+    type="static_transform_publisher" 
+    args="0.1 0.0 0.1 0 0 0 base_link laser 100" />
+  <node name="gps_tf" pkg="tf" 
+    type="static_transform_publisher" 
+    args="0.1 0.1 0.1 0 0 0 base_link gps 100" />
   <!-- 
     <node pkg="truck" type="cmd_vel_sim.py" name="cmd_vel_sim" />
   -->
