@@ -1,5 +1,6 @@
 #include <iostream>
 #include <ros/ros.h>
+#include <angles/angles.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Pose2D.h>
@@ -21,6 +22,8 @@ std::string command;
 geometry_msgs::Pose2D current_pose_odom;
 geometry_msgs::Pose2D current_pose_gps;
 std::queue<geometry_msgs::Pose2D> goals;
+ros::Duration elapsed_time;
+ros::Time state_start_time;
 
 geometry_msgs::Pose2D poseToPose2D(geometry_msgs::Pose pose) {
   geometry_msgs::Pose2D p;
@@ -30,6 +33,9 @@ geometry_msgs::Pose2D poseToPose2D(geometry_msgs::Pose pose) {
   p.theta = atan2(2.0 * (q.z * q.w + q.x * q.y) , 
       - 1.0 + 2.0 * (q.w * q.w + q.x * q.x)); 
   return p;
+}
+std::ostream &operator<<(std::ostream &os, const geometry_msgs::Pose2D &p) {
+  return os << "(" << p.x << "," << p.y << "," << p.theta*180.0/M_PI << ")";
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr &odom) {
@@ -59,8 +65,13 @@ void distanceBetweenPoses(
   distance = sqrt(dx*dx + dy*dy);
   angle = atan2(dy, dx);
 }
-
+float limit(float v, float limit) {
+  if (v>limit) return limit;
+  if (v<-limit) return -limit;
+  return v;
+}
 void stateMachineCallback(const ros::TimerEvent &e) {
+  elapsed_time = ros::Time::now() - state_start_time;
   ROS_INFO_STREAM("State machine "<< (int)state);
   // handle commands
   if (!command.empty()) {
@@ -90,6 +101,7 @@ void stateMachineCallback(const ros::TimerEvent &e) {
   }
   // handle state changes
   if(next_state != state) {
+    state_start_time = ros::Time::now();
     state = next_state;
   }
   geometry_msgs::Twist cmd_vel;
@@ -107,22 +119,18 @@ void stateMachineCallback(const ros::TimerEvent &e) {
           ROS_INFO("DRIVE_ODOM: No goals");
           break;
         }
-        float d, a;
+        float d, a, steering_error;
         distanceBetweenPoses(goals.front(), current_pose_odom, d, a);
-        ROS_INFO_STREAM("at("<<current_pose_odom.x<<","<<
-            current_pose_odom.y<<") goto("<<goals.front().x<<
-            ","<<goals.front().y<<")");
+        steering_error = angles::shortest_angular_distance(a, current_pose_odom.theta);
+        ROS_INFO_STREAM("at" << current_pose_odom << " goto "<< goals.front() <<
+          " relative=(" <<d<<","<<a<<") err="<<steering_error);
         if(d < 0.1) {
           ROS_INFO("DRIVE_ODOM: arrived");
           goals.pop();
         } else {
           ROS_INFO_STREAM("Driving to Odom goals "<<goals.size() << " left");
           cmd_vel.linear.x = 0.1;
-          if(a > 0.1) {
-            cmd_vel.angular.z = 0.1;
-          } else if(a < -0.1) {
-            cmd_vel.angular.z = -0.1;
-          }
+          cmd_vel.angular.z = limit(-steering_error,0.3);
         }
       }
       break;
@@ -137,6 +145,7 @@ int main(int argc, char **argv) {
   ros::Subscriber gps_sub = nh.subscribe("gps", 1, gpsCallback);
   ros::Subscriber goal_sub = nh.subscribe("goal_cmd", 1, goalCallback);
   ros::Subscriber cmd_sub = nh.subscribe("cmd", 1, cmdCallback);
+  state_start_time = ros::Time::now();
   vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel",1);
   state_machine_timer = nh.createTimer(ros::Duration(0.1), 
       stateMachineCallback);
