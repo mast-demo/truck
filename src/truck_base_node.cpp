@@ -139,7 +139,7 @@ void stateMachineCallback(const ros::TimerEvent &e) {
 }
 
 int main(int argc, char **argv) {
-  ros::init(argc, argv, "truck_node");
+  ros::init(argc, argv, "truck_base_node");
   ros::NodeHandle nh;
   ros::Subscriber odom_sub = nh.subscribe("odometry/filtered", 1, odomCallback);
   ros::Subscriber gps_sub = nh.subscribe("gps", 1, gpsCallback);

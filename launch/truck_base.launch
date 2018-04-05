@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find truck_base)/launch/static_tf.launch" />
+  <!-- 
+    <node pkg="truck_base" type="cmd_vel_sim.py" name="cmd_vel_sim" />
+  -->
+  <node pkg="truck_base" type="truck_base_node" name="truck_base_node" output="screen"/>
+  <node pkg="truck_base" type="twist_sim.py" name="twist_sim" />
+	<include file="$(find truck_base)/launch/localization_odom.launch" />
+	<include file="$(find truck_base)/launch/imu.launch" />
+<!--
+	<include file="$(find truck_base)/launch/camera.launch" />
+-->
+</launch>
