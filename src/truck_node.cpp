@@ -120,7 +120,7 @@ void stateMachineCallback(const ros::TimerEvent &e) {
           cmd_vel.linear.x = 0.1;
           if(a > 0.1) {
             cmd_vel.angular.z = 0.1;
-          } else if(a < 0.1) {
+          } else if(a < -0.1) {
             cmd_vel.angular.z = -0.1;
           }
         }
