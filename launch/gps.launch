@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- 
+  this will start nodes to read the GPS and publish gps on "fix" topic
+  Then the utm node will publish utm position on "utm_odom" topic
+-->
+<launch>
+  <arg name="gps_dev" default="/dev/ttyUSB1"/>
+  <node pkg="nmea_navsat_driver" type="nmea_serial_driver" name="gps">
+    <param name="port" value="$(arg gps_dev)"/>
+    <param name="baud" value="4800"/>
+  </node>
+  <node pkg="gps_common" type="utm_odometry_node" name="utm">
+    <remap from="odom" to="odom_utm"/>
+  </node>
+</launch>
+

@@ -18,14 +18,15 @@ ros::Timer state_machine_timer;
 enum class States {
   IDLE,
   GO,
-  DRIVE_ODOM
+  DRIVE_ODOM,
+  DRIVE_UTM
 };
 
 States state = States::IDLE;
 States next_state = States::IDLE;
 std::string command;
 geometry_msgs::Pose2D current_pose_odom;
-geometry_msgs::Pose2D current_pose_gps;
+geometry_msgs::Pose2D current_pose_utm;
 std::queue<geometry_msgs::Pose2D> goals_odom;
 std::queue<geometry_msgs::Pose2D> goals_utm;
 ros::Duration elapsed_time;
@@ -48,8 +49,8 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr &odom) {
   current_pose_odom = poseToPose2D(odom->pose.pose);
 }
 
-void gpsCallback(const nav_msgs::Odometry::ConstPtr &odom) {
-  current_pose_gps = poseToPose2D(odom->pose.pose);
+void utmCallback(const nav_msgs::Odometry::ConstPtr &odom) {
+  current_pose_utm = poseToPose2D(odom->pose.pose);
 }
 
 void goalOdomCallback(const geometry_msgs::Pose2D::ConstPtr &goal) {
@@ -80,7 +81,32 @@ float limit(float v, float limit) {
   if (v<-limit) return -limit;
   return v;
 }
+// create cmd_vel to get to odom goal.  return true if arrived, false otherwise
+bool driveToGoal(geometry_msgs::Pose2D goal, geometry_msgs::Twist &cmd_vel) 
+{
+  float d, a, steering_error;
+  distanceBetweenPoses(goal, current_pose_odom, d, a);
+  steering_error = angles::shortest_angular_distance(a,
+      current_pose_odom.theta);
+  ROS_INFO_STREAM("at " << current_pose_odom << " goal "<< 
+      goal <<
+      " relative=(" <<d<<","<<a<<") err="<<steering_error);
+  if(d < 0.1) {
+    return true;
+  } else {
+    cmd_vel.linear.x = 0.1;
+    cmd_vel.angular.z = limit(-steering_error,0.3);
+    return false;
+  }
+}
 
+geometry_msgs::Pose2D utmToOdom(geometry_msgs::Pose2D pose_utm) {
+  geometry_msgs::Pose2D pose_odom;
+  pose_odom.x = current_pose_utm.x - pose_utm.x + current_pose_odom.x; 
+  pose_odom.y = current_pose_utm.y - pose_utm.y + current_pose_odom.y; 
+  ROS_INFO_STREAM("utmToOdom: utm="<<pose_utm<<" current UTM="<<current_pose_utm<<" odom="<<pose_odom);
+  return pose_odom;
+}
 void stateMachineCallback(const ros::TimerEvent &e) {
   elapsed_time = ros::Time::now() - state_start_time;
   //ROS_INFO_STREAM("State machine "<< (int)state);
@@ -101,6 +127,11 @@ void stateMachineCallback(const ros::TimerEvent &e) {
       if (state == States::IDLE) {
         next_state = States::DRIVE_ODOM;
         ROS_INFO_STREAM("Driving to Odom goals");
+      }
+    } else if(command == "DRIVE_UTM") {
+      if (state == States::IDLE) {
+        next_state = States::DRIVE_UTM;
+        ROS_INFO_STREAM("Driving to UTM goals");
       }
     } else if(command == "RESET") {
       while(!goals_odom.empty()) goals_odom.pop();
@@ -135,34 +166,32 @@ void stateMachineCallback(const ros::TimerEvent &e) {
         if (goals_odom.empty()) {
           ROS_INFO("DRIVE_ODOM: No goals");
           break;
-        }
-        float d, a, steering_error;
-        distanceBetweenPoses(goals_odom.front(), current_pose_odom, d, a);
-        steering_error = angles::shortest_angular_distance(a,
-            current_pose_odom.theta);
-        ROS_INFO_STREAM("at" << current_pose_odom << " goto "<< 
-            goals_odom.front() <<
-            " relative=(" <<d<<","<<a<<") err="<<steering_error);
-        if(d < 0.1) {
+        } else if (driveToGoal(goals_odom.front(), cmd_vel)) {
           ROS_INFO("DRIVE_ODOM: arrived");
           goals_odom.pop();
-        } else {
-          ROS_INFO_STREAM("Driving to Odom goals "<<goals_odom.size() <<
-              " left");
-          cmd_vel.linear.x = 0.1;
-          cmd_vel.angular.z = limit(-steering_error,0.3);
+        }
+      }
+      break;
+    case States::DRIVE_UTM:
+      {
+        if (goals_utm.empty()) {
+          ROS_INFO("DRIVE_UTM: No goals");
+          break;
+        } else if (driveToGoal(utmToOdom(goals_utm.front()), cmd_vel)) {
+          ROS_INFO("DRIVE_UTM: arrived");
+          goals_utm.pop();
         }
       }
       break;
   }
-  vel_pub.publish(cmd_vel);  
+  vel_pub.publish(cmd_vel); 
 }
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "truck_base_node");
   ros::NodeHandle nh;
   ros::Subscriber odom_sub = nh.subscribe("odometry/filtered", 1, odomCallback);
-  ros::Subscriber gps_sub = nh.subscribe("gps", 1, gpsCallback);
+  ros::Subscriber utm_sub = nh.subscribe("odom_utm", 1, utmCallback);
   ros::Subscriber goal_odom_sub = nh.subscribe("goal_odom_cmd", 1,
       goalOdomCallback);
   ros::Subscriber goal_utm_sub = nh.subscribe("goal_utm_cmd", 1, 
@@ -176,7 +205,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-/*** load a kml file as gps goals */
+/*** load a kml file as utm goals */
 void loadKMLGoalFile(const std::string &goal_filename) {
   ROS_INFO_STREAM("Loading goal file: "<< goal_filename); 
   std::ifstream inf(goal_filename);
